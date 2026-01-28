@@ -1,0 +1,7 @@
+1;Refresco do Chaves;Suco de limão que parece de tamarindo e tem gosto de groselha.;2.99;BEBIDAS;false;;false
+2;Sanduíche de Presunto do Chaves;Sanduíche de presunto simples mas feito com muito amor.;3.50;PRATOS_PRINCIPAIS;true;2.99;false
+3;Torta de Frango da Dona Florinda;Torta de frango com recheio cremoso e massa crocante.;12.99;PRATOS_PRINCIPAIS;true;10.99;false
+4;Pipoca do Quico;Balde de pipoca preparado com carinho pelo Quico.;4.99;PRATOS_PRINCIPAIS;true;3.99;true
+5;Água de Jamaica;Água aromatizada com hibisco e toque de açúcar.;2.5;BEBIDAS;true;2.0;false
+6;Churros do Chaves;Churros recheados com doce de leite clássicos e irresistíveis.;4.99;SOBREMESAS;true;3.99;true
+7;Tacos de Carnitas;Tacos recheados com carne tenra;25.9;PRATOS_PRINCIPAIS;false;;true
