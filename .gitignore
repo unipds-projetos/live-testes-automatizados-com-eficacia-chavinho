@@ -39,3 +39,5 @@ build/
 .DS_Store
 
 .idea
+products-200.csv
+products-2000000.csv
