@@ -1,142 +1,179 @@
 package br.com.unipds.chavinho;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
+import br.com.unipds.chavinho.model.CSVConfig;
+import br.com.unipds.chavinho.model.Disciplina;
+import br.com.unipds.chavinho.model.ItemCardapio;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class ChavinhoTest {
+class ChavinhoTest {
 
-  private Chavinho chavinho;
+	@Nested
+	@DisplayName("Cenário: String CSV serializado para Object")
+	class CenarioStringCsv {
 
-  @BeforeEach
-  void setup() {
-    chavinho = new Chavinho();
-  }
+		@Test
+		@DisplayName("Deve retornar lista vazia se input vazio ou nulo")
+		void deveRetornarListaVaziaQuandoInputForNuloOuVazio() {
+			final var config = new CSVConfig.Builder()
+					.conteudo(null)
+					.build();
 
-  @Test
-  void deveRetornarUmaListaVaziaQuandoMeuInputForNulo() {
-    // arrange
-    String csv = null;
+			final var chavinho = new Chavinho(config);
+			final var itemCardapios = chavinho.writeToObject(ItemCardapio.class);
 
-    // act
-    List<Disciplina> lista = chavinho.leCsv(csv);
+			assertNotNull(itemCardapios);
+			assertTrue(itemCardapios.isEmpty());
+		}
 
-    // assert
-    Assertions.assertNotNull(lista);
-    Assertions.assertTrue(lista.isEmpty());
-  }
+		@Test
+		@DisplayName("Deve retornar lista com uma disciplina quando input for de uma disciplina")
+		void deveRetornarListaDeDisciplinaQuandoInputForDeUmaDisciplina() {
+			final var csv = """
+					0,Introdução ao Java
+					""";
 
-  @Test
-  void deveRetornarUmaListaVaziaQuandoMeuInputForVazio() {
-    // arrange
-    String csv = "";
+			final var config = new CSVConfig.Builder()
+					.conteudo(csv)
+					.separador(",")
+					.build();
 
-    // act
-    List<Disciplina> lista = chavinho.leCsv(csv);
+			final var chavinho = new Chavinho(config);
+			final var disciplinas = chavinho.writeToObject(Disciplina.class);
 
-    // assert
-    Assertions.assertNotNull(lista);
-    Assertions.assertTrue(lista.isEmpty());
-  }
+			assertInstanceOf(Disciplina.class, disciplinas.getFirst());
+			assertEquals(1, disciplinas.size());
+			assertEquals("Introdução ao Java", disciplinas.getFirst().nome());
+		}
+	}
 
-  @Test
-  void dadoQueEuPasseUmaDisciplinaEuQueroAListBonitinha() {
-    String csv = """
-        0,Introdução ao Java
-        """;
+	@Nested
+	@DisplayName("Cenário: Csv serializado para Item Cardapio")
+	class CenarioItemCardapio {
+		@Test
+		@DisplayName("Deve converter CSV para lista de itens do cardápio")
+		void deveConverterCsvParaListaDeItensCardapio() {
+			final var config = new CSVConfig.Builder()
+					.nome("src/test/resources/itens-cardapio.csv")
+					.separador(";")
+					.build();
 
-    List<Disciplina> lista = chavinho.leCsv(csv);
+			final var chavinho = new Chavinho(config);
+			final var itens = chavinho.writeToObject(ItemCardapio.class);
 
-    Assertions.assertNotNull(lista);
-    Assertions.assertEquals(1, lista.size());
+			assertInstanceOf(ItemCardapio.class, itens.getFirst());
+			assertEquals(7, itens.size());
+			assertEquals("Refresco do Chaves", itens.getFirst().nome());
+			assertEquals(2.99, itens.getFirst().preco());
+			assertFalse(itens.getFirst().emPromocao());
+		}
 
-    Disciplina disciplina = lista.get(0);
+		@Test
+		@DisplayName("Deve converter todos os campos corretamente")
+		void deveConverterTodosOsCamposCorretamente() {
+			final var config = new CSVConfig.Builder()
+					.nome("src/test/resources/itens-cardapio.csv")
+					.separador(";")
+					.build();
 
-    Assertions.assertEquals(0, disciplina.numero());
-    Assertions.assertEquals("Introdução ao Java", disciplina.nome());
-  }
+			final var chavinho = new Chavinho(config);
+			final var itens = chavinho.writeToObject(ItemCardapio.class);
 
-  @Test
-  @DisplayName("Teste que valida a lista obtida a partir do CSV pegando a primeira e a ultima disciplina")
-  void dadoQueEuPasseUmaListaDeDisciplinasEuQueroAListaCompletaBonitinha() {
-    String csv = """
-        número disciplina,nome disciplina
-        0,Introdução ao Java
-        1,Fundamentos do Java
-        2,Desenvolvimento de Aplicações Back-End com Spring Boot e Quarkus + IA Corporativa com Java e Langchain4j
-        3,Fundamentos de Front-End com React
-        4,Arquitetura de Sistemas
-        5,Software Design e System Design
-        6,Concorrência e Multithreading em Java
-        7,Infraestrutura e Cloud Computing com Docker Kubernetes e AWS
-        8,Bancos de Dados Relacionais e NoSQL
-        9,Testes Automatizados e Qualidade de Código
-        10,Como Atrair as Melhores Vagas do Mercado
-        """;
+			final var churros = itens.get(5);
+			assertEquals(6L, churros.id());
+			assertEquals("Churros do Chaves", churros.nome());
+			assertEquals(4.99, churros.preco());
+			assertEquals("SOBREMESAS", churros.categoria());
+			assertTrue(churros.emPromocao());
+			assertEquals(3.99, churros.precoComDesconto());
+			assertTrue(churros.impostoIsento());
+		}
 
-    List<Disciplina> lista = chavinho.leCsv(csv, true);
+		@Test
+		@DisplayName("Deve converter double vazio para 0.0")
+		void deveConverterDoubleVazioParaZero() {
+			final var config = new CSVConfig.Builder()
+					.nome("src/test/resources/itens-cardapio.csv")
+					.separador(";")
+					.build();
 
-    Assertions.assertNotNull(lista);
-    Assertions.assertEquals(11, lista.size());
+			final var chavinho = new Chavinho(config);
+			final var itens = chavinho.writeToObject(ItemCardapio.class);
 
-    Disciplina disciplina = lista.getFirst();
+			final var refresco = itens.getFirst();
+			assertEquals(0.0, refresco.precoComDesconto());
+		}
+	}
 
-    Assertions.assertEquals(0, disciplina.numero());
-    Assertions.assertEquals("Introdução ao Java", disciplina.nome());
+	@Nested
+	@DisplayName("Cenário: Csv serializado para Disciplina")
+	class CenarioUnipdsDisciplina {
 
-    disciplina = lista.getLast();
+		@Test
+		@DisplayName("Deve converter CSV para lista de disciplinas")
+		void deveConverterCsvParaListaDeDisciplinas() {
+			final var config = new CSVConfig.Builder()
+					.nome("src/test/resources/unipds-disciplinas.csv")
+					.separador(",")
+					.temCabecalho(true)
+					.build();
 
-    Assertions.assertEquals(10, disciplina.numero());
-    Assertions.assertEquals("Como Atrair as Melhores Vagas do Mercado", disciplina.nome());
-  }
+			final var chavinho = new Chavinho(config);
+			final var disciplinas = chavinho.writeToObject(Disciplina.class);
 
-  @Test
-  void deveLancarExcecaoSeOArquivoNaoExiste() {
-    Assertions.assertThrows(ChavinhoException.class, () -> {
-      chavinho.leCsvDeArquivo("arquivo/que/nao/existe", false);
-    });
-  }
+			assertInstanceOf(Disciplina.class, disciplinas.getFirst());
+			assertEquals(11, disciplinas.size());
+			assertEquals("Introdução ao Java", disciplinas.getFirst().nome().trim());
+		}
 
-  @Test
-  void deveLerListaDeUmArquivoCsv() {
-    Chavinho2 chavinho = new Chavinho2();
+		@Test
+		@DisplayName("Deve converter todos os campos corretamente")
+		void deveConverterTodosOsCamposCorretamente() {
+			final var config = new CSVConfig.Builder()
+					.nome("src/test/resources/unipds-disciplinas.csv")
+					.separador(",")
+					.temCabecalho(true)
+					.build();
 
-    List<Disciplina> lista = chavinho.leCsvDeArquivo("src/test/resources/unipds-disciplinas.csv",
-        ",", true, Disciplina.class);
+			final var chavinho = new Chavinho(config);
+			final var disciplinas = chavinho.writeToObject(Disciplina.class);
 
-    Assertions.assertNotNull(lista);
-    Assertions.assertEquals(11, lista.size());
+			final var introducaoAoJava = disciplinas.getFirst();
+			assertEquals(0, introducaoAoJava.numero());
+			assertEquals("Introdução ao Java", introducaoAoJava.nome());
+		}
+	}
 
-    Disciplina disciplina = lista.getFirst();
+	@Nested
+	@DisplayName("Cenário: Csv com erro de conversão")
+	class CenarioCSVConversionException {
+		@Test
+		@DisplayName("Deve lançar exceção quando separador não encontrado")
+		void deveLancarExcecaoQuandoSeparadorNaoEncontrado() {
+			final var config = new CSVConfig.Builder()
+					.nome("src/test/resources/itens-cardapio.csv")
+					.separador("|")
+					.build();
 
-    Assertions.assertEquals(0, disciplina.numero());
-    Assertions.assertEquals("Introdução ao Java ", disciplina.nome());
+			final var chavinho = new Chavinho(config);
 
-    disciplina = lista.getLast();
+			assertThrows(CSVConversionException.class, () -> chavinho.writeToObject(ItemCardapio.class));
+		}
 
-    Assertions.assertEquals(10, disciplina.numero());
-    Assertions.assertEquals("Como Atrair as Melhores Vagas do Mercado ", disciplina.nome());
-  }
+		@Test
+		@DisplayName("Deve lançar exceção quando arquivo não existe")
+		void deveLancarExcecaoQuandoArquivoNaoExiste() {
+			final var config = new CSVConfig.Builder()
+					.nome("arquivo-inexistente.csv")
+					.separador(";")
+					.build();
 
-  @Test
-  void deveLerListaDeUmOutroArquivoCsvCompletamenteDiferente() {
-    Chavinho2 chavinho = new Chavinho2();
-    List<ItemCardapio> lista =
-        chavinho.leCsvDeArquivo("src/test/resources/itens-cardapio.csv",
-            ";", false, ItemCardapio.class);
-    Assertions.assertNotNull(lista);
-    Assertions.assertEquals(7, lista.size());
+			final var chavinho = new Chavinho(config);
 
-    ItemCardapio item = lista.getFirst();
-    Assertions.assertEquals(1, item.id());
-    Assertions.assertEquals("Refresco do Chaves", item.nome());
-
-    item = lista.getLast();
-    Assertions.assertEquals(7, item.id());
-    Assertions.assertEquals("Tacos de Carnitas", item.nome());
-  }
-
+			assertThrows(CSVConversionException.class, () -> chavinho.writeToObject(ItemCardapio.class));
+		}
+	}
 }
