@@ -39,3 +39,4 @@ build/
 .DS_Store
 
 .idea
+src/test/resources/products-2000000.csv
