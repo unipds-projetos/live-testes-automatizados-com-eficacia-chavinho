@@ -3,7 +3,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .kotlin
-
+src/test/resources/products-2000000.csv
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
