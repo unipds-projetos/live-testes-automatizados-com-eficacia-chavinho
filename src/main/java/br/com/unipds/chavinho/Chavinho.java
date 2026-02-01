@@ -2,16 +2,18 @@ package br.com.unipds.chavinho;
 
 import br.com.unipds.chavinho.model.CSVConfig;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class Chavinho {
-	private final CSVConfig csvConfig;
 	private static final Map<Class<?>, Function<String, Object>> CONVERSORES = Map.ofEntries(
 			Map.entry(int.class, Integer::parseInt),
 			Map.entry(Integer.class, Integer::parseInt),
@@ -30,49 +32,73 @@ public class Chavinho {
 			Map.entry(char.class, s -> s.charAt(0)),
 			Map.entry(Character.class, s -> s.charAt(0))
 	);
+	private final CSVConfig csvConfig;
 
 	public Chavinho(CSVConfig csvConfig) {
 		this.csvConfig = csvConfig;
 	}
 
 	public <T> List<T> writeToObject(Class<T> clazz) {
+		List<T> resultado = new ArrayList<>();
+		processarCsvEmLotes(clazz, 50, resultado::addAll);
+		return resultado;
+	}
 
-		try {
-			final var linhas = leLinhas();
-			if (linhas.isEmpty()) {
-				return new ArrayList<>();
+	public <T> void processarCsvEmLotes(Class<T> clazz, int tamanhoDoBatch, Consumer<List<T>> processadorDeLote) {
+		try (BufferedReader reader = obterReader()) {
+
+			if (csvConfig.isTemCabecalho()) {
+				final var _ = reader.readLine();
 			}
 
-			final var inicio = csvConfig.isTemCabecalho() ? 1 : 0;
-			if (!linhas.get(inicio).contains(csvConfig.getSeparador())) {
-				throw new CSVConversionException("Separador não encontrado no caminho. " + csvConfig.getNomeArquivo());
+			List<T> lote = new ArrayList<>(tamanhoDoBatch);
+			String linha;
+
+			while ((linha = reader.readLine()) != null) {
+				if (!linha.contains(csvConfig.getSeparador())) {
+					throw new CSVConversionException("Separador não encontrado na linha: " + linha);
+				}
+
+				lote.add(converterLinha(linha, clazz));
+
+				if (lote.size() >= tamanhoDoBatch) {
+					processadorDeLote.accept(lote);
+					lote.clear();
+				}
 			}
 
-			final var resultado = new ArrayList<T>();
-			final var constructor = clazz.getDeclaredConstructors()[0];
-
-
-			for (int i = inicio; i < linhas.size(); i++) {
-				final var valores = linhas.get(i).split(csvConfig.getSeparador());
-				final var args = converteValores(valores, constructor.getParameterTypes());
-				resultado.add((T) constructor.newInstance(args));
+			if (!lote.isEmpty()) {
+				processadorDeLote.accept(lote);
 			}
-			return resultado;
+		} catch (CSVConversionException e) {
+			throw e;
 		} catch (Exception e) {
-			throw new CSVConversionException("Erro ao processar arquivo CSV", e);
+			throw new CSVConversionException("Erro ao processar CSV em lotes", e);
 		}
 	}
 
-	private List<String> leLinhas() throws IOException {
+	private BufferedReader obterReader() throws IOException {
 		if (csvConfig.getNomeArquivo() != null && !csvConfig.getNomeArquivo().isEmpty()) {
-			return Files.readAllLines(Paths.get(csvConfig.getNomeArquivo()));
+			return Files.newBufferedReader(Paths.get(csvConfig.getNomeArquivo()));
 		}
 
 		if (csvConfig.getConteudo() != null && !csvConfig.getConteudo().isEmpty()) {
-			return csvConfig.getConteudo().lines().toList();
+			return new BufferedReader(new StringReader(csvConfig.getConteudo()));
 		}
 
-		return List.of();
+		throw new CSVConversionException("Nenhuma fonte de dados configurada");
+	}
+
+	private <T> T converterLinha(String linha, Class<T> clazz) {
+		try {
+			final var valores = linha.split(csvConfig.getSeparador());
+			final var constructor = clazz.getDeclaredConstructors()[0];
+			final var args = converteValores(valores, constructor.getParameterTypes());
+			return (T) constructor.newInstance(args);
+		} catch (Exception e) {
+			throw new CSVConversionException("Erro ao converter linha: " + linha, e);
+		}
+
 	}
 
 	private Object[] converteValores(String[] valores, Class<?>[] tipos) {
