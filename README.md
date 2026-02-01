@@ -1,82 +1,153 @@
-# Chavinho
+# Desafio Chavinho2
+## Processamento eficiente de CSV com Testes Automatizados
 
-Este é o projeto Chavinho, uma biblioteca Java simples para ler arquivos CSV e convertê-los em listas de objetos. 
-O nome do projeto é uma homenagem ao personagem "Chaves", e foi desenvolvido no contexto da UNIPDS.
+Este projeto faz parte do desafio prático apresentado na live  
+**“Testes Automatizados com Eficiência”**, cujo objetivo foi evoluir a
+implementação original do *Chavinho* aplicando boas práticas de design,
+testes automatizados e eficiência no uso de memória.
 
-## Funcionalidades
+---
 
-O projeto oferece duas classes principais para a leitura de CSV:
+## 🎯 Objetivos do Desafio
 
-*   `Chavinho`: Uma classe para ler um CSV específico de `Disciplina`s.
-*   `Chavinho2`: Uma classe mais genérica que usa reflection para converter as linhas do CSV em objetos de qualquer tipo de Record.
+Os principais TODOs propostos foram:
 
-## Como Usar
+- Remover a implementação original do **Chavinho**
+- Criar uma nova versão (**Chavinho2**) utilizando **Builder Pattern**
+- Garantir leitura de CSV utilizando **`record`**
+- Manter compatibilidade com os testes existentes
+- Processar arquivos grandes (≈ 311 MB)
+- Garantir execução com JVM limitada a **128 MB de heap**
+- Validar tudo através de **testes automatizados (TDD)**
 
-### Chavinho
+---
 
-A classe `Chavinho` é usada para ler um CSV com ou sem cabeçalho e convertê-lo em uma `List<Disciplina>`.
-
-```java
-// Exemplo de uso do Chavinho
-
-Chavinho chavinho = new Chavinho();
-
-// Lendo de uma String
-String csv = """
-    0,Introdução ao Java
-    1,Fundamentos do Java
-    """;
-List<Disciplina> disciplinas = chavinho.leCsv(csv);
-
-// Lendo de um arquivo
-List<Disciplina> disciplinasDeArquivo = chavinho.leCsvDeArquivo("caminho/para/disciplinas.csv", true);
-```
+## 🧱 Arquitetura da Solução
 
 ### Chavinho2
 
-A classe `Chavinho2` é mais flexível e pode ser usada para ler qualquer arquivo CSV e convertê-lo em uma lista de Records.
+Classe imutável criada via **Builder Pattern**, responsável apenas por
+configurações de leitura do CSV.
+
+#### Responsabilidades
+
+- Definir o separador do arquivo
+- Indicar se o CSV possui cabeçalho
+
+#### Exemplo de uso
+
+```
+Chavinho2 chavinho2 = Chavinho2.builder()
+    .separador(",")
+    .temCabecalho(true)
+    .build();
+```
+
+---
+
+**Chavinho2Service**
+
+Classe responsável pela leitura e processamento dos arquivos CSV.
+
+**Métodos disponíveis**
+
+```leCsvDeArquivo```
+
+```
+public <T> List<T> leCsvDeArquivo(
+    String nomeArquivo,
+    Class<T> classe,
+    Chavinho2 chavinho2
+)
+```
+**Características**
+
+- Lê todo o arquivo em memória
+- Retorna uma lista de record
+- Indicado para arquivos pequenos ou médios
+- Mantido por compatibilidade e simplicidade
+
+processaCsvDeArquivo
+
+public <T> void processaCsvDeArquivo(
+    String nomeArquivo,
+    Class<T> classe,
+    Chavinho2 chavinho2,
+    Consumer<T> consumer
+)
+
+**Características**
+
+- Processamento **linha a linha**
+- Não acumula dados em memória
+- Utiliza ```Files.lines()``` (stream lazy)
+- Ideal para arquivos grandes
+- Permite execução com heap reduzido
+- Linhas mal formatadas são ignoradas para evitar falhas em massa
+
+---
+
+**🧪 Testes Automatizados**
+
+Os testes cobrem os seguintes cenários:
+
+- Leitura de CSV com e sem cabeçalho
+- Diferentes separadores de campo
+- Uso obrigatório de ```record```
+- Arquivo inexistente
+- Arquivo inválido
+- Processamento de arquivo grande sem estouro de memória
+
+---
+
+**Teste principal do desafio**
 
 ```java
-// Exemplo de uso do Chavinho2 com um Record ItemCardapio
-
-public record ItemCardapio(int id, String nome, String descricao, double preco, boolean disponivel) {
+@Test
+@DisplayName("Deve processar arquivo grande sem estourar memória")
+void deveProcessarArquivoGrandeSemEstourarMemoria() {
+    Assertions.assertDoesNotThrow(() ->
+        chavinho2Service.processaCsvDeArquivo(
+            csv,
+            Product.class,
+            chavinho2,
+            product -> contador.incrementAndGet()
+        )
+    );
 }
 
-Chavinho2 chavinho2 = new Chavinho2();
-List<ItemCardapio> cardapio = chavinho2.leCsvDeArquivo(
-    "caminho/para/cardapio.csv",
-    ";", // separador
-    true, // tem cabeçalho
-    ItemCardapio.class
-);
 ```
 
-## Como Construir o Projeto
+**O que este teste valida**
 
-Para construir o projeto, você precisa ter o Maven instalado. 
+- O arquivo completo é percorrido
+- Nenhuma exceção de memória é lançada
+- O processamento ocorre de forma streaming
 
-Em seguida, execute o seguinte comando na raiz do projeto:
+    O **teste não valida quantidade de linhas**, e sim o
+    **comportamento do sistema sob restrição de memória**.
 
-```bash
-mvn clean install
+---
+
+🧠 **Uso de Memória**
+
+Para validação do desafio, os testes foram executados com a seguinte
+configuração de JVM:
+
+```
+-Xmx128m
 ```
 
-## Como Executar os Testes
+O método ```processaCsvDeArquivo``` foi desenhado especificamente para operar
+dentro desse limite, processando o CSV de forma sequencial e sem retenção
+de dados no heap.
 
-Para executar os testes, execute o seguinte comando:
+---
 
-```bash
-mvn test
-```
+**⚠ Decisões Técnicas**
 
-## Sobre
-
-Este projeto foi desenvolvido na live "Testes Automatizados com Eficácia" da pós Java Elite da [UNIPDS](https://www.unipds.com.br).
-
-## TODO:
-
-- eliminar o `Chavinho` primeira versão deixando apenas o `Chavinho2`
-- usar o `Builder` pattern para definir configurações da classe `Chavinho` como se tem cabeçalho ou não e o separador
-- verificar se a `Class<T>` passada para o `leCsvDeArquivo` é um `Record` ou não. Dar suporte a classes que não são records.
-- melhorar o código em geral
-- limitar a JVM de execução do código para 128 MB com `-Xmx 128m` e tratar o seguinte CSV de 311 MB: https://drive.google.com/uc?id=18BLAZDeH74Ll3b4GsMNY3s-YVnNmWblC&export=download 
+- Linhas mal formatadas são ignoradas durante o processamento streaming
+- Não há logging por linha inválida para evitar impacto de performance
+- A leitura completa do arquivo foi mantida apenas para cenários menores
+- O foco do desafio foi robustez e eficiência, não validação semântica
+    completa do CSV

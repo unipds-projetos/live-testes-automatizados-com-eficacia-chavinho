@@ -1,4 +1,4 @@
-package br.com.unipds.chavinho;
+package br.com.unipds.chavinho2.record;
 
 public record ItemCardapio(
     long id,
