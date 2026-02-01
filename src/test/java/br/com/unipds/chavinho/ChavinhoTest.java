@@ -3,6 +3,7 @@ package br.com.unipds.chavinho;
 import br.com.unipds.chavinho.model.CSVConfig;
 import br.com.unipds.chavinho.model.Disciplina;
 import br.com.unipds.chavinho.model.ItemCardapio;
+import br.com.unipds.chavinho.model.Produto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -176,7 +177,8 @@ class ChavinhoTest {
 			Chavinho chavinho = new Chavinho(config);
 
 			assertThrows(CSVConversionException.class, () ->
-				chavinho.processarCsvEmLotes(Disciplina.class, 10, _ -> {})
+					chavinho.processarCsvEmLotes(Disciplina.class, 10, _ -> {
+					})
 			);
 		}
 
@@ -259,5 +261,56 @@ class ChavinhoTest {
 		}
 
 
+	}
+
+	@Nested
+	@DisplayName("Cenário: Classe normal")
+	class CenarioClasseNormal {
+		@Test
+		void deveConverterCsvParaClasse() {
+			String csv = """
+					1;Notebook;2500.00
+					2;Mouse;50.00
+					""";
+
+			CSVConfig config = new CSVConfig.Builder()
+					.conteudo(csv)
+					.separador(";")
+					.temCabecalho(false)
+					.build();
+
+			Chavinho chavinho = new Chavinho(config);
+			List<Produto> produtos = chavinho.writeToObject(Produto.class);
+
+			assertEquals(2, produtos.size());
+			assertEquals(1, produtos.getFirst().getId());
+			assertEquals("Notebook", produtos.getFirst().getNome());
+			assertEquals(2500.00, produtos.getFirst().getPreco());
+		}
+
+		@Test
+		void deveProcessarClasseEmLotes() {
+			String csv = """
+					1;Notebook;2500.00
+					2;Mouse;50.00
+					3;Teclado;150.00
+					4;Monitor;800.00
+					""";
+
+			CSVConfig config = new CSVConfig.Builder()
+					.conteudo(csv)
+					.separador(";")
+					.temCabecalho(false)
+					.build();
+
+			Chavinho chavinho = new Chavinho(config);
+			List<Integer> tamanhosDosLotes = new ArrayList<>();
+
+			chavinho.processarCsvEmLotes(Produto.class, 2, lote -> {
+				tamanhosDosLotes.add(lote.size());
+			});
+
+			assertEquals(List.of(2, 2), tamanhosDosLotes);
+		}
 	}
 }

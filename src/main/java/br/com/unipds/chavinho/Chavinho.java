@@ -92,13 +92,33 @@ public class Chavinho {
 	private <T> T converterLinha(String linha, Class<T> clazz) {
 		try {
 			final var valores = linha.split(csvConfig.getSeparador());
-			final var constructor = clazz.getDeclaredConstructors()[0];
-			final var args = converteValores(valores, constructor.getParameterTypes());
-			return (T) constructor.newInstance(args);
+			if (clazz.isRecord()) {
+				return converterParaRecord(valores, clazz);
+			}
+
+			return converterParaClasse(valores, clazz);
 		} catch (Exception e) {
 			throw new CSVConversionException("Erro ao converter linha: " + linha, e);
 		}
 
+	}
+
+	private <T> T converterParaClasse(String[] valores, Class<T> clazz) throws Exception {
+		T objeto = clazz.getDeclaredConstructor().newInstance();
+		final var fields = clazz.getDeclaredFields();
+
+		for (int i = 0; i < Math.min(valores.length, fields.length); i++) {
+			fields[i].setAccessible(true);
+			fields[i].set(objeto, converte(valores[i], fields[i].getType()));
+		}
+
+		return objeto;
+	}
+
+	private <T> T converterParaRecord(String[] valores, Class<T> clazz) throws Exception {
+		final var constructor = clazz.getDeclaredConstructors()[0];
+		final var args = converteValores(valores, constructor.getParameterTypes());
+		return (T) constructor.newInstance(args);
 	}
 
 	private Object[] converteValores(String[] valores, Class<?>[] tipos) {
