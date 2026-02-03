@@ -15,6 +15,9 @@ public record ItemCardapio(
         boolean impostoIsento) {
 
     public static List<ItemCardapio> lerCsv(String caminhoArquivo) {
-        return new CsvRecordReader().read(caminhoArquivo, true, ItemCardapio.class);
+        return CsvRecordReader.builder()
+                .withHeader(true)
+                .build()
+                .read(caminhoArquivo, ItemCardapio.class);
     }
 }

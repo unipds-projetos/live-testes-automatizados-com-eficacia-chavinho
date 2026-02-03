@@ -21,6 +21,9 @@ public record Product(
 ) {
 
     public static void processarCsv(String caminhoArquivo, Consumer<Product> processador) {
-        new CsvRecordReader().process(caminhoArquivo, true, Product.class, processador);
+        CsvRecordReader.builder()
+                .withHeader(true)
+                .build()
+                .process(caminhoArquivo, Product.class, processador);
     }
 }

@@ -16,7 +16,7 @@ class CsvReaderTest {
 
     @BeforeEach
     void setup() {
-        csvRecordReader = new CsvRecordReader();
+        csvRecordReader = CsvRecordReader.builder().withHeader(true).build();
     }
 
     // ==================================================================================
@@ -26,7 +26,7 @@ class CsvReaderTest {
     @Test
     @DisplayName("Deve ser resiliente e retornar lista vazia quando input (String) é nulo")
     void deveRetornarListaVaziaComInputNulo() {
-        List<Disciplina> lista = csvRecordReader.readString(null, true, Disciplina.class);
+        List<Disciplina> lista = csvRecordReader.readString(null, Disciplina.class);
 
         Assertions.assertNotNull(lista);
         Assertions.assertTrue(lista.isEmpty());
@@ -40,7 +40,7 @@ class CsvReaderTest {
                 1,Java Avançado
                 """;
 
-        List<Disciplina> lista = csvRecordReader.readString(csv, true, Disciplina.class);
+        List<Disciplina> lista = csvRecordReader.readString(csv, Disciplina.class);
 
         Assertions.assertEquals(1, lista.size());
         Assertions.assertEquals("Java Avançado", lista.getFirst().nome());
@@ -51,8 +51,11 @@ class CsvReaderTest {
     void deveLerStringParaItemCardapio() {
         String csv = "100;Tacos Pastor";
 
-        List<ItemCardapio> lista = csvRecordReader.readString(csv, false, ItemCardapio.class);
+        CsvRecordReader leitorSemHeader = CsvRecordReader.builder().withHeader(false).build();
 
+        List<ItemCardapio> lista = leitorSemHeader.readString(csv, ItemCardapio.class);
+
+        Assertions.assertFalse(lista.isEmpty(), "A lista não deveria estar vazia");
         Assertions.assertEquals(1, lista.size());
         Assertions.assertEquals("Tacos Pastor", lista.getFirst().nome());
     }
