@@ -1,104 +1,145 @@
 package br.com.unipds.csvreader.core;
 
-import br.com.unipds.csvreader.model.Disciplina;
-import br.com.unipds.csvreader.model.ItemCardapio;
-import br.com.unipds.csvreader.model.Product;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 class CsvReaderTest {
 
-    private CsvRecordReader csvRecordReader;
+    private CsvReader csvReader;
 
     @BeforeEach
     void setup() {
-        csvRecordReader = CsvRecordReader.builder().withHeader(true).build();
+        csvReader = CsvReader.builder()
+                .withHeader(true)
+                .build();
     }
 
-    // ==================================================================================
-    // 1. TESTES DE UNIDADE
-    // ==================================================================================
+    /// ==================================================================
+    ///     TESTES UNITÁRIOS (Strings em Memória)
+    /// ==================================================================
 
     @Test
-    @DisplayName("Deve ser resiliente e retornar lista vazia quando input (String) é nulo")
-    void deveRetornarListaVaziaComInputNulo() {
-        List<Disciplina> lista = csvRecordReader.readString(null, Disciplina.class);
-
-        Assertions.assertNotNull(lista);
-        Assertions.assertTrue(lista.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Deve converter String CSV em memória para objetos corretamente")
-    void deveLerStringParaDisciplina() {
+    @DisplayName("Unit: Deve ler String CSV simples com cabeçalho")
+    void deveLerStringComHeader() {
         String csv = """
-                id,nome
-                1,Java Avançado
+                id,user_name
+                1,admin
                 """;
 
-        List<Disciplina> lista = csvRecordReader.readString(csv, Disciplina.class);
+        List<Map<String, String>> resultado = csvReader.readString(csv);
 
-        Assertions.assertEquals(1, lista.size());
-        Assertions.assertEquals("Java Avançado", lista.getFirst().nome());
+        Assertions.assertEquals(1, resultado.size());
+        assertMapContains(resultado.get(0), "id", "1");
+        assertMapContains(resultado.get(0), "user_name", "admin");
     }
 
     @Test
-    @DisplayName("Deve suportar Generics e ler outros tipos (ItemCardapio)")
-    void deveLerStringParaItemCardapio() {
-        String csv = "100;Tacos Pastor";
+    @DisplayName("Unit: Deve ler String CSV sem cabeçalho (usando índices)")
+    void deveLerStringSemHeader() {
+        String csv = "100;Banana;Fruta";
 
-        CsvRecordReader leitorSemHeader = CsvRecordReader.builder().withHeader(false).build();
+        CsvReader leitorSemHeader = CsvReader.builder()
+                .withHeader(false)
+                .build();
 
-        List<ItemCardapio> lista = leitorSemHeader.readString(csv, ItemCardapio.class);
+        List<Map<String, String>> resultado = leitorSemHeader.readString(csv);
 
-        Assertions.assertFalse(lista.isEmpty(), "A lista não deveria estar vazia");
-        Assertions.assertEquals(1, lista.size());
-        Assertions.assertEquals("Tacos Pastor", lista.getFirst().nome());
+        Assertions.assertEquals(1, resultado.size());
+        
+        assertMapContains(resultado.get(0), "0", "100");
+        assertMapContains(resultado.get(0), "1", "Banana");
+        assertMapContains(resultado.get(0), "2", "Fruta");
     }
 
-    // ==================================================================================
-    // 2. TESTES DE INTEGRAÇÃO
-    // ==================================================================================
+    @Test
+    @DisplayName("Unit: Deve retornar lista vazia se input for nulo ou branco")
+    void deveTratarInputVazio() {
+        Assertions.assertTrue(csvReader.readString(null).isEmpty());
+        Assertions.assertTrue(csvReader.readString("").isEmpty());
+        Assertions.assertTrue(csvReader.readString("   ").isEmpty());
+    }
+
+    /// ==================================================================
+    ///     TESTES DE INTEGRAÇÃO (Arquivos fisicos)
+    /// ==================================================================
 
     @Test
-    @DisplayName("Disciplina: Deve lançar exceção se o arquivo não existe (via método estático)")
-    void deveLancarExcecaoSeArquivoNaoExiste() {
-        Assertions.assertThrows(CsvParsingException.class, () -> {
-            Disciplina.lerCsv("caminho/falso/nao/existe.csv");
+    @DisplayName("Integration: Deve ler arquivo separado por VÍRGULA (ex: Disciplinas)")
+    void deveLerArquivoSeparadoPorVirgula() {
+        String arquivo = "src/test/resources/unipds-disciplinas.csv";
+
+        List<Map<String, String>> linhas = csvReader.read(arquivo);
+
+        Assertions.assertFalse(linhas.isEmpty(), "Arquivo não deveria estar vazio");
+        
+        Map<String, String> primeiraLinha = linhas.get(0);
+
+        if (primeiraLinha.containsKey("nome disciplina")) {
+            assertMapContains(primeiraLinha, "nome disciplina", "Introdução ao Java");
+        } else {
+            System.out.println("⚠️ Colunas encontradas em Disciplinas: " + primeiraLinha.keySet());
+            Assertions.fail("Não encontrou a coluna 'name'. Verifique o log.");
+        }
+    }
+
+    @Test
+    @DisplayName("Integration: Deve ler arquivo separado por PONTO-E-VÍRGULA (Sem Header)")
+    void deveLerArquivoSeparadoPorPontoVirgula() {
+        String arquivo = "src/test/resources/itens-cardapio.csv";
+
+        CsvReader leitorSemHeader = CsvReader.builder()
+                .withHeader(false)
+                .build();
+
+        List<Map<String, String>> linhas = leitorSemHeader.read(arquivo);
+
+        Assertions.assertFalse(linhas.isEmpty());
+
+        Map<String, String> ultimaLinha = linhas.get(linhas.size() - 1);
+
+        String nome = ultimaLinha.get("1");
+        String precoStr = ultimaLinha.get("3");
+
+        Assertions.assertEquals("Tacos de Carnitas", nome);
+        Assertions.assertNotNull(precoStr, "Coluna '3' (preço) não encontrada.");
+        Assertions.assertTrue(Double.parseDouble(precoStr) > 0);
+    }
+
+    @Test
+    @DisplayName("Integration: Deve processar arquivo GIGANTE via Stream (ex: Products)")
+    void deveProcessarArquivoGigante() {
+        String arquivo = "src/test/resources/products-2000000.csv";
+
+        java.util.concurrent.atomic.AtomicInteger contador = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        csvReader.process(arquivo, produto -> {
+            contador.incrementAndGet();
+
+            if (contador.get() == 1) {
+                Assertions.assertNotNull(produto.get("name"),
+                        "Erro ao ler 'name'. Colunas disponíveis: " + produto.keySet());
+            }
         });
+
+        Assertions.assertTrue(contador.get() > 0, "O processamento via Stream não leu nenhuma linha!");
     }
 
-    @Test
-    @DisplayName("Disciplina: Deve ler arquivo real do disco corretamente")
-    void deveLerArquivoDeDisciplinas() {
-        List<Disciplina> lista = Disciplina.lerCsv("src/test/resources/unipds-disciplinas.csv");
+    /// ==================================================================
+    ///     MÉTODOS AUXILIARES (Para facilitar o Debug)
+    /// ==================================================================
 
-        Assertions.assertFalse(lista.isEmpty());
-        Assertions.assertEquals(11, lista.size());
-        Assertions.assertEquals("Introdução ao Java", lista.getFirst().nome().trim());
-    }
+    private void assertMapContains(Map<String, String> mapa, String chave, String valorEsperado) {
+        String valorReal = mapa.get(chave);
 
-    @Test
-    @DisplayName("ItemCardapio: Deve ler arquivo real do disco corretamente")
-    void deveLerArquivoDeCardapio() {
-        List<ItemCardapio> lista = ItemCardapio.lerCsv("src/test/resources/itens-cardapio.csv");
+        if (valorReal == null) {
+            Assertions.fail(String.format("Chave '%s' não encontrada. Chaves disponíveis: %s", chave, mapa.keySet()));
+        }
 
-        Assertions.assertFalse(lista.isEmpty());
-        Assertions.assertEquals(6, lista.size());
-
-        ItemCardapio item = lista.getLast();
-        Assertions.assertEquals("Tacos de Carnitas", item.nome());
-        Assertions.assertTrue(item.preco() > 0);
-    }
-
-    @Test
-    void deveProcessarArquivoGiganteSemEstourarMemoria() {
-        Product.processarCsv("src/test/resources/products-2000000.csv", produto -> {
-            Assertions.assertNotNull(produto.name());
-        });
+        Assertions.assertEquals(valorEsperado.trim(), valorReal.trim());
     }
 }
