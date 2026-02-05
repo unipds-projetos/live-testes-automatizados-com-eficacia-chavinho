@@ -1,5 +1,6 @@
 package br.com.unipds.chavinho;
 
+import br.com.unipds.chavinho.exception.CSVConversionException;
 import br.com.unipds.chavinho.model.CSVConfig;
 import br.com.unipds.chavinho.model.Disciplina;
 import br.com.unipds.chavinho.model.ItemCardapio;
@@ -32,7 +33,7 @@ class ChavinhoTest {
 					.build();
 
 			final var chavinho = new Chavinho(config);
-			final var disciplinas = chavinho.writeToObject(Disciplina.class);
+			final var disciplinas = chavinho.mapearParaObjeto(Disciplina.class);
 
 			assertInstanceOf(Disciplina.class, disciplinas.getFirst());
 			assertEquals(1, disciplinas.size());
@@ -52,7 +53,7 @@ class ChavinhoTest {
 					.build();
 
 			final var chavinho = new Chavinho(config);
-			final var itens = chavinho.writeToObject(ItemCardapio.class);
+			final var itens = chavinho.mapearParaObjeto(ItemCardapio.class);
 
 			assertInstanceOf(ItemCardapio.class, itens.getFirst());
 			assertEquals(7, itens.size());
@@ -70,7 +71,7 @@ class ChavinhoTest {
 					.build();
 
 			final var chavinho = new Chavinho(config);
-			final var itens = chavinho.writeToObject(ItemCardapio.class);
+			final var itens = chavinho.mapearParaObjeto(ItemCardapio.class);
 
 			final var churros = itens.get(5);
 			assertEquals(6L, churros.id());
@@ -91,7 +92,7 @@ class ChavinhoTest {
 					.build();
 
 			final var chavinho = new Chavinho(config);
-			final var itens = chavinho.writeToObject(ItemCardapio.class);
+			final var itens = chavinho.mapearParaObjeto(ItemCardapio.class);
 
 			final var refresco = itens.getFirst();
 			assertEquals(0.0, refresco.precoComDesconto());
@@ -112,7 +113,7 @@ class ChavinhoTest {
 					.build();
 
 			final var chavinho = new Chavinho(config);
-			final var disciplinas = chavinho.writeToObject(Disciplina.class);
+			final var disciplinas = chavinho.mapearParaObjeto(Disciplina.class);
 
 			assertInstanceOf(Disciplina.class, disciplinas.getFirst());
 			assertEquals(11, disciplinas.size());
@@ -129,7 +130,7 @@ class ChavinhoTest {
 					.build();
 
 			final var chavinho = new Chavinho(config);
-			final var disciplinas = chavinho.writeToObject(Disciplina.class);
+			final var disciplinas = chavinho.mapearParaObjeto(Disciplina.class);
 
 			final var introducaoAoJava = disciplinas.getFirst();
 			assertEquals(0, introducaoAoJava.numero());
@@ -150,7 +151,7 @@ class ChavinhoTest {
 
 			final var chavinho = new Chavinho(config);
 
-			assertThrows(CSVConversionException.class, () -> chavinho.writeToObject(ItemCardapio.class));
+			assertThrows(CSVConversionException.class, () -> chavinho.mapearParaObjeto(ItemCardapio.class));
 		}
 
 		@Test
@@ -163,7 +164,7 @@ class ChavinhoTest {
 
 			final var chavinho = new Chavinho(config);
 
-			assertThrows(CSVConversionException.class, () -> chavinho.writeToObject(ItemCardapio.class));
+			assertThrows(CSVConversionException.class, () -> chavinho.mapearParaObjeto(ItemCardapio.class));
 		}
 
 		@Test
@@ -280,7 +281,7 @@ class ChavinhoTest {
 					.build();
 
 			Chavinho chavinho = new Chavinho(config);
-			List<Produto> produtos = chavinho.writeToObject(Produto.class);
+			List<Produto> produtos = chavinho.mapearParaObjeto(Produto.class);
 
 			assertEquals(2, produtos.size());
 			assertEquals(1, produtos.getFirst().getId());

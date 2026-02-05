@@ -1,4 +1,4 @@
-package br.com.unipds.chavinho;
+package br.com.unipds.chavinho.exception;
 
 public class CSVConversionException extends RuntimeException {
 	public CSVConversionException(String message) {

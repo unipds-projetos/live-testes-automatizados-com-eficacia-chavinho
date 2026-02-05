@@ -1,5 +1,6 @@
 package br.com.unipds.chavinho;
 
+import br.com.unipds.chavinho.exception.CSVConversionException;
 import br.com.unipds.chavinho.model.CSVConfig;
 
 import java.io.BufferedReader;
@@ -38,7 +39,7 @@ public class Chavinho {
 		this.csvConfig = csvConfig;
 	}
 
-	public <T> List<T> writeToObject(Class<T> clazz) {
+	public <T> List<T> mapearParaObjeto(Class<T> clazz) {
 		List<T> resultado = new ArrayList<>();
 		processarCsvEmLotes(clazz, 50, resultado::addAll);
 		return resultado;
