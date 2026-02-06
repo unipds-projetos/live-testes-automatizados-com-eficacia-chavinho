@@ -82,8 +82,6 @@ public class CsvReader {
         }
     }
 
-
-
     private void runPipeline(Stream<String> linesStream, char separator, Consumer<Map<String, String>> processor) {
         Iterator<String> iterator = linesStream.iterator();
         if (!iterator.hasNext()) return;
