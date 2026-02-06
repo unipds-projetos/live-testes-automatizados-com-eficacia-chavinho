@@ -9,9 +9,9 @@ import java.util.stream.Stream;
 
 public class CsvParser {
 
-    /**
-     * Parse manual (Máquina de Estados).
-     */
+    /// -------------------------------------------------------------
+    /// ANÁLISE MANUAL (PARSER) COM MÁQUINA DE ESTADOS
+    /// -------------------------------------------------------------
     public List<String> parseLine(String line, char separator) {
         List<String> result = new ArrayList<>();
         StringBuilder currentField = new StringBuilder();

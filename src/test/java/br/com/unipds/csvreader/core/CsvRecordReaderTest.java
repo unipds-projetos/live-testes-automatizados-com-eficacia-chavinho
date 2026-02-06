@@ -1,104 +1,221 @@
 package br.com.unipds.csvreader.core;
 
-import br.com.unipds.csvreader.model.Disciplina;
-import br.com.unipds.csvreader.model.ItemCardapio;
-import br.com.unipds.csvreader.model.Product;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class CsvReaderTest {
 
-    private CsvRecordReader csvRecordReader;
+    private CsvReader csvReader;
 
     @BeforeEach
     void setup() {
-        csvRecordReader = CsvRecordReader.builder().withHeader(true).build();
+        csvReader = CsvReader.builder()
+                .withHeader(true)
+                .build();
     }
 
-    // ==================================================================================
-    // 1. TESTES DE UNIDADE
-    // ==================================================================================
+    /// ==================================================================
+    ///     TESTES UNITÁRIOS (Strings em Memória)
+    /// ==================================================================
 
     @Test
-    @DisplayName("Deve ser resiliente e retornar lista vazia quando input (String) é nulo")
-    void deveRetornarListaVaziaComInputNulo() {
-        List<Disciplina> lista = csvRecordReader.readString(null, Disciplina.class);
-
-        Assertions.assertNotNull(lista);
-        Assertions.assertTrue(lista.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Deve converter String CSV em memória para objetos corretamente")
-    void deveLerStringParaDisciplina() {
+    @DisplayName("Unit: Deve ler String CSV simples com cabeçalho")
+    void deveLerStringComHeader() {
         String csv = """
-                id,nome
-                1,Java Avançado
+                id,user_name
+                1,admin
+                """;
+        List<Map<String, String>> resultado = csvReader.readString(csv);
+
+        Assertions.assertEquals(1, resultado.size());
+        Assertions.assertEquals("1", resultado.get(0).get("id"));
+        Assertions.assertEquals("admin", resultado.get(0).get("user_name"));
+    }
+
+    @Test
+    @DisplayName("Unit: Deve ler String CSV sem cabeçalho (usando índices)")
+    void deveLerStringSemHeader() {
+        String csv = "100;Banana;Fruta";
+        CsvReader leitorSemHeader = CsvReader.builder().withHeader(false).build();
+
+        List<Map<String, String>> resultado = leitorSemHeader.readString(csv);
+
+        Assertions.assertEquals(1, resultado.size());
+        Assertions.assertEquals("100", resultado.get(0).get("0"));
+    }
+
+    @Test
+    @DisplayName("Unit: Deve retornar lista vazia se input for nulo ou branco")
+    void deveTratarInputVazio() {
+        Assertions.assertTrue(csvReader.readString(null).isEmpty());
+        Assertions.assertTrue(csvReader.readString("").isEmpty());
+    }
+
+    /// ==================================================================
+    ///     TESTES DE INTEGRAÇÃO (Arquivos físicos)
+    /// ==================================================================
+
+    @Test
+    @DisplayName("Integration: Deve ler arquivo separado por VÍRGULA (ex: Disciplinas)")
+    void deveLerArquivoSeparadoPorVirgula() {
+        String arquivo = "src/test/resources/unipds-disciplinas.csv";
+        List<Map<String, String>> linhas = csvReader.read(arquivo);
+
+        Assertions.assertFalse(linhas.isEmpty(), "Arquivo não deveria estar vazio");
+
+        Map<String, String> primeiraLinha = linhas.get(0);
+
+        String valor = primeiraLinha.get("nome disciplina");
+        if (valor == null) valor = primeiraLinha.get("nome");
+
+        Assertions.assertNotNull(valor, "Coluna de nome não encontrada. Chaves: " + primeiraLinha.keySet());
+        Assertions.assertEquals("Introdução ao Java", valor.trim());
+    }
+
+    @Test
+    @DisplayName("Integration: Deve ler arquivo separado por PONTO-E-VÍRGULA (Sem Header)")
+    void deveLerArquivoSeparadoPorPontoVirgula() {
+        String arquivo = "src/test/resources/itens-cardapio.csv";
+
+        CsvReader leitorSemHeader = CsvReader.builder()
+                .withHeader(false)
+                .build();
+
+        List<Map<String, String>> linhas = leitorSemHeader.read(arquivo);
+        Assertions.assertFalse(linhas.isEmpty());
+
+        Map<String, String> ultimaLinha = linhas.get(linhas.size() - 1);
+        String nome = ultimaLinha.get("1");
+        String precoStr = ultimaLinha.get("3");
+        double preco = Double.parseDouble(precoStr);
+        double precoEsperado = 25.9;
+
+        Assertions.assertEquals("Tacos de Carnitas", nome);
+        Assertions.assertNotNull(precoStr, "Coluna de preço não encontrada");
+        Assertions.assertEquals(precoEsperado, preco, 0.001, "O preço deve bater exatamente com o CSV");
+    }
+
+    @Test
+    @DisplayName("Integration: Deve processar arquivo GIGANTE via Stream (ex: Products)")
+    void deveProcessarArquivoGigante() {
+        String arquivo = "src/test/resources/products-2000000.csv";
+
+        AtomicInteger contador = new AtomicInteger(0);
+
+        csvReader.process(arquivo, produto -> {
+            int linhaAtual = contador.incrementAndGet();
+
+            if (linhaAtual == 1) {
+                String nomeEsperado = "Pro Charger Tablet Brush Go 360";
+
+                Assertions.assertEquals(nomeEsperado, produto.get("name"), "Nome incorreto na linha 1");
+                Assertions.assertNotNull(produto.get("price"), "Preço não deveria ser nulo");
+            }
+        });
+
+        int totalEsperado = 2000000;
+        Assertions.assertEquals(totalEsperado, contador.get(), "O número total de linhas processadas está incorreto");
+    }
+
+    @Test
+    @DisplayName("Idiomatic: Deve converter para Objeto Tipado usando Interface (Strategy)")
+    void deveLerComStrategyPattern() {
+        String arquivo = "src/test/resources/itens-cardapio.csv";
+
+        CsvReader leitorSemHeader = CsvReader.builder()
+                .withHeader(false)
+                .build();
+
+        CsvRowMapper<ProdutoDTO> mapper = new CsvRowMapper<ProdutoDTO>() {
+            @Override
+            public ProdutoDTO mapRow(Map<String, String> row) {
+                String nome = row.get("1");
+                String precoStr = row.get("3");
+                return new ProdutoDTO(nome, Double.parseDouble(precoStr));
+            }
+        };
+
+        List<ProdutoDTO> produtos = leitorSemHeader.read(arquivo, mapper);
+        Assertions.assertFalse(produtos.isEmpty());
+        ProdutoDTO ultimoProduto = produtos.get(produtos.size() - 1);
+
+        Assertions.assertEquals("Tacos de Carnitas", ultimoProduto.nome);
+        Assertions.assertEquals(25.9, ultimoProduto.preco, 0.001);
+    }
+
+    @Test
+    @DisplayName("Parser: Deve respeitar separador dentro de aspas (Não deve quebrar a string)")
+    void deveRespeitarSeparadorDentroDeAspas() {
+        String csv = """
+                id;nome;preco
+                1;"Botas; de Couro";150.00
                 """;
 
-        List<Disciplina> lista = csvRecordReader.readString(csv, Disciplina.class);
+        CsvReader leitor = CsvReader.builder()
+                .withSeparator(';')
+                .withHeader(true)
+                .build();
 
-        Assertions.assertEquals(1, lista.size());
-        Assertions.assertEquals("Java Avançado", lista.getFirst().nome());
+        List<Map<String, String>> resultado = leitor.readString(csv);
+
+        Assertions.assertEquals(1, resultado.size());
+        Assertions.assertEquals("Botas; de Couro", resultado.get(0).get("nome"));
+        Assertions.assertEquals("150.00", resultado.get(0).get("preco"));
     }
 
     @Test
-    @DisplayName("Deve suportar Generics e ler outros tipos (ItemCardapio)")
-    void deveLerStringParaItemCardapio() {
-        String csv = "100;Tacos Pastor";
+    @DisplayName("Parser: Deve ler colunas vazias corretamente")
+    void deveLerColunasVazias() {
 
-        CsvRecordReader leitorSemHeader = CsvRecordReader.builder().withHeader(false).build();
+        String csv = "1;Mouse;;true";
 
-        List<ItemCardapio> lista = leitorSemHeader.readString(csv, ItemCardapio.class);
+        CsvReader leitor = CsvReader.builder()
+                .withHeader(false)
+                .withSeparator(';')
+                .build();
 
-        Assertions.assertFalse(lista.isEmpty(), "A lista não deveria estar vazia");
-        Assertions.assertEquals(1, lista.size());
-        Assertions.assertEquals("Tacos Pastor", lista.getFirst().nome());
+        List<Map<String, String>> resultado = leitor.readString(csv);
+
+        Map<String, String> linha = resultado.get(0);
+
+        Assertions.assertEquals("1", linha.get("0"));
+        Assertions.assertEquals("Mouse", linha.get("1"));
+        Assertions.assertEquals("", linha.get("2"), "A coluna vazia deveria ser uma String vazia");
+        Assertions.assertEquals("true", linha.get("3"));
     }
 
-    // ==================================================================================
-    // 2. TESTES DE INTEGRAÇÃO
-    // ==================================================================================
-
     @Test
-    @DisplayName("Disciplina: Deve lançar exceção se o arquivo não existe (via método estático)")
-    void deveLancarExcecaoSeArquivoNaoExiste() {
-        Assertions.assertThrows(CsvParsingException.class, () -> {
-            Disciplina.lerCsv("caminho/falso/nao/existe.csv");
+    @DisplayName("Error Handling: Deve lançar exceção amigável se arquivo não existir")
+    void deveLancarErroArquivoInexistente() {
+        String arquivoFalso = "caminho/que/nao/existe.csv";
+
+        CsvParsingException exception = Assertions.assertThrows(CsvParsingException.class, () -> {
+            csvReader.read(arquivoFalso);
         });
+
+        Assertions.assertTrue(exception.getMessage().contains("Erro de IO"),
+                "A mensagem de erro deveria mencionar problema de IO");
     }
 
-    @Test
-    @DisplayName("Disciplina: Deve ler arquivo real do disco corretamente")
-    void deveLerArquivoDeDisciplinas() {
-        List<Disciplina> lista = Disciplina.lerCsv("src/test/resources/unipds-disciplinas.csv");
+    /// ==================================================================
+    ///     NOVO TESTE: STRATEGY PATTERN
+    /// ==================================================================
+    /// Classe auxiliar DTO (Data Transfer Object) apenas para teste
+    /// ==================================================================
 
-        Assertions.assertFalse(lista.isEmpty());
-        Assertions.assertEquals(11, lista.size());
-        Assertions.assertEquals("Introdução ao Java", lista.getFirst().nome().trim());
-    }
+    static class ProdutoDTO {
+        String nome;
+        double preco;
 
-    @Test
-    @DisplayName("ItemCardapio: Deve ler arquivo real do disco corretamente")
-    void deveLerArquivoDeCardapio() {
-        List<ItemCardapio> lista = ItemCardapio.lerCsv("src/test/resources/itens-cardapio.csv");
-
-        Assertions.assertFalse(lista.isEmpty());
-        Assertions.assertEquals(6, lista.size());
-
-        ItemCardapio item = lista.getLast();
-        Assertions.assertEquals("Tacos de Carnitas", item.nome());
-        Assertions.assertTrue(item.preco() > 0);
-    }
-
-    @Test
-    void deveProcessarArquivoGiganteSemEstourarMemoria() {
-        Product.processarCsv("src/test/resources/products-2000000.csv", produto -> {
-            Assertions.assertNotNull(produto.name());
-        });
+        public ProdutoDTO(String nome, double preco) {
+            this.nome = nome;
+            this.preco = preco;
+        }
     }
 }
