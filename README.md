@@ -75,8 +75,9 @@ Este projeto foi desenvolvido na live "Testes Automatizados com Eficácia" da p�
 
 ## TODO:
 
-- eliminar o `Chavinho` primeira versão deixando apenas o `Chavinho2`
-- usar o `Builder` pattern para definir configurações da classe `Chavinho` como se tem cabeçalho ou não e o separador
-- verificar se a `Class<T>` passada para o `leCsvDeArquivo` é um `Record` ou não. Dar suporte a classes que não são records.
-- melhorar o código em geral
-- limitar a JVM de execução do código para 128 MB com `-Xmx 128m` e tratar o seguinte CSV de 311 MB: https://drive.google.com/uc?id=18BLAZDeH74Ll3b4GsMNY3s-YVnNmWblC&export=download 
+- :white_check_mark: eliminar o `Chavinho` primeira versão deixando apenas o `Chavinho2`
+- :white_large_square: usar o `Builder` pattern para definir configurações da classe `Chavinho` como se tem cabeçalho ou não e o separador
+- :white_check_mark: verificar se a `Class<T>` passada para o `leCsvDeArquivo` é um `Record` ou não. Dar suporte a classes que não são records.
+- :white_check_mark: melhorar o código em geral
+- :white_large_square: limitar a JVM de execução do código para 128 MB com `-Xmx 128m`
+- :white_check_mark: tratar o seguinte CSV de 311 MB: https://drive.google.com/uc?id=18BLAZDeH74Ll3b4GsMNY3s-YVnNmWblC&export=download 
